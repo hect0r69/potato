@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Let Me Potato</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: #f1ddbd;
+      color: #634727;
+      font-family: system-ui, sans-serif;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    #intro {
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      position: relative;
+      z-index: 2;
+      background: radial-gradient(ellipse at center, #fff5df, #eacba0);
+      transition: transform 900ms cubic-bezier(.7, 0, .2, 1);
+    }
+
+    #intro.leaving {
+      transform: translateY(-100%);
+    }
+
+    .intro-content {
+      text-align: center;
+      padding: 24px;
+    }
+
+    .intro-content h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      color: #654624;
+    }
+
+    .intro-content p {
+      margin: 0 0 30px;
+      font-size: 1.1rem;
+    }
+
+    #startButton {
+      border: 0;
+      border-radius: 999px;
+      padding: 16px 32px;
+      background: #8b5e34;
+      color: white;
+      font: inherit;
+      font-size: 1.15rem;
+      font-weight: 700;
+      cursor: none;
+      box-shadow: 0 8px 0 #634727;
+      transition: transform 150ms, box-shadow 150ms;
+    }
+
+    #startButton:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 11px 0 #634727;
+    }
+
+    #startButton:active {
+      transform: translateY(5px);
+      box-shadow: 0 3px 0 #634727;
+    }
+
+    #potatoStage {
+      height: 100vh;
+      min-height: 420px;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 42%, #fff5df, #eacba0);
+    }
+
+    #potatoStage canvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+    }
+
+    .hint {
+      position: absolute;
+      z-index: 1;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .cursor {
+      position: fixed;
+      z-index: 5;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #634727;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="cursor" id="cursor"></div>
+
+  <section id="intro">
+    <div class="intro-content">
+      <h1>Meet Potato</h1>
+      <p>A very real potato with very important places to be.</p>
+      <button id="startButton">Let me potato</button>
+    </div>
+  </section>
+
+  <section id="potatoStage">
+    <div class="hint">Move your mouse and the potato will follow!</div>
+  </section>
+
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+    const stage = document.querySelector("#potatoStage");
+    const intro = document.querySelector("#intro");
+    const cursor = document.querySelector("#cursor");
+
+    document.querySelector("#startButton").addEventListener("click", () => {
+      intro.classList.add("leaving");
+      window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+    });
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#f1ddbd");
+
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.set(0, 0, 10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    stage.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xfff4df, 0x735332, 2));
+
+    const sunlight = new THREE.DirectionalLight(0xffffff, 3.2);
+    sunlight.position.set(-3, 5, 6);
+    sunlight.castShadow = true;
+    scene.add(sunlight);
+
+    // Create a subtle, speckled potato-skin texture.
+    const textureCanvas = document.createElement("canvas");
+    textureCanvas.width = textureCanvas.height = 512;
+    const context = textureCanvas.getContext("2d");
+    context.fillStyle = "#b98145";
+    context.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 26000; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const radius = Math.random() * 2.2;
+
+      context.fillStyle = Math.random() > 0.5
+        ? `rgba(80,45,18,${Math.random() * 0.22})`
+        : `rgba(255,215,150,${Math.random() * 0.2})`;
+
+      context.beginPath();
+      context.ellipse(
+        x, y, radius * 1.5, radius,
+        Math.random() * 3, 0, Math.PI * 2
+      );
+      context.fill();
+    }
+
+    const potatoTexture = new THREE.CanvasTexture(textureCanvas);
+    potatoTexture.colorSpace = THREE.SRGBColorSpace;
+
+    // Make an irregular, slightly elongated potato shape.
+    const geometry = new THREE.SphereGeometry(1, 72, 56);
+    const vertices = geometry.attributes.position;
+
+    for (let i = 0; i < vertices.count; i++) {
+      const x = vertices.getX(i);
+      const y = vertices.getY(i);
+      const z = vertices.getZ(i);
+
+      const unevenness =
+        1 +
+        0.055 * Math.sin(x * 8 + y * 5) * Math.cos(z * 7) +
+        0.025 * Math.sin(y * 13 + z * 9);
+
+      vertices.setXYZ(
+        i,
+        x * unevenness * 1.18,
+        y * unevenness * 0.84,
+        z * unevenness * 0.88
+      );
+    }
+
+    geometry.computeVertexNormals();
+
+    const potato = new THREE.Mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({
+        map: potatoTexture,
+        roughness: 0.88,
+        bumpMap: potatoTexture,
+        bumpScale: 0.045
+      })
+    );
+
+    potato.castShadow = true;
+    potato.receiveShadow = true;
+    scene.add(potato);
+
+    // Add a few little potato eyes on the front.
+    const eyeMaterial = new THREE.MeshStandardMaterial({
+      color: "#50321d",
+      roughness: 1
+    });
+
+    const eyePositions = [
+      [-0.48, 0.35, 0.79],
+      [0.23, 0.55, 0.72],
+      [0.53, 0.03, 0.78],
+      [-0.28, -0.42, 0.78],
+      [0.20, -0.30, 0.81],
+      [-0.68, -0.04, 0.64]
+    ];
+
+    for (const [x, y, z] of eyePositions) {
+      const eye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 12, 10),
+        eyeMaterial
+      );
+      eye.position.set(x, y, z);
+      eye.scale.set(1.3, 0.7, 0.5);
+      potato.add(eye);
+    }
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 200),
+      new THREE.ShadowMaterial({ opacity: 0.18 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -2.2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const target = new THREE.Vector3();
+    const velocity = new THREE.Vector3();
+    const clock = new THREE.Clock();
+
+    function resize() {
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
+
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    function updatePointer(event) {
+      cursor.style.left = `${event.clientX}px`;
+      cursor.style.top = `${event.clientY}px`;
+
+      const bounds = stage.getBoundingClientRect();
+      const x = event.clientX - bounds.left;
+      const y = event.clientY - bounds.top;
+
+      // Convert pointer position into the 3D scene's coordinates.
+      const visibleHeight =
+        2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
+      const visibleWidth = visibleHeight * camera.aspect;
+
+      target.set(
+        (x / bounds.width - 0.5) * visibleWidth,
+        (0.5 - y / bounds.height) * visibleHeight,
+        0
+      );
+    }
+
+    addEventListener("pointermove", updatePointer);
+    addEventListener("resize", resize);
+    resize();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = Math.min(clock.getDelta(), 0.033);
+
+      // Spring force and damping create smooth, weighty movement.
+      const acceleration = target
+        .clone()
+        .sub(potato.position)
+        .multiplyScalar(22)
+        .addScaledVector(velocity, -7);
+
+      velocity.addScaledVector(acceleration, delta);
+      potato.position.addScaledVector(velocity, delta);
+
+      potato.rotation.z = THREE.MathUtils.damp(
+        potato.rotation.z,
+        -velocity.x * 0.12,
+        5,
+        delta
+      );
+
+      potato.rotation.x = THREE.MathUtils.damp(
+        potato.rotation.x,
+        velocity.y * 0.08,
+        5,
+        delta
+      );
+
+      potato.rotation.y += velocity.x * delta * 0.16;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
